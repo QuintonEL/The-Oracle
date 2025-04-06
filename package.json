@@ -13,7 +13,8 @@
     "@tailwindcss/vite": "^4.1.2",
     "axios": "^1.8.4",
     "react": "^18.3.1",
-    "react-dom": "^18.3.1"
+    "react-dom": "^18.3.1",
+    "react-parallax-tilt": "^1.7.289"
   },
   "devDependencies": {
     "@eslint/js": "^9.17.0",
