@@ -4,8 +4,23 @@ import Tilt from "react-parallax-tilt";
 interface Card {
   id: string;
   name: string;
-  imageUrl?: string;
-  type?: string;
+  type_line?: string;
+  oracle_text?: string;
+  image_uris?: {
+    small: string;
+    normal: string;
+    large: string;
+  };
+  card_faces?: {
+    name: string;
+    oracle_text?: string;
+    type_line?: string;
+    image_uris?: {
+      small: string;
+      normal: string;
+      large: string;
+    };
+  }[];
 }
 
 const SkeletonCard = () => (
@@ -42,18 +57,27 @@ const CardSearch = () => {
 
   const searchCards = async (name: string) => {
     setLoading(true);
+
     try {
-      const res = await fetch(
-        `https://api.magicthegathering.io/v1/cards?name=${encodeURIComponent(
-          name
-        )}`
-      );
+      const parts = [];
+
+      if (name) parts.push(name); // full-text name search
+
+      const query = parts.join(" ");
+      const url = `https://api.scryfall.com/cards/search?q=${encodeURIComponent(
+        query
+      )}`;
+      console.log("Fetching:", url); // for debug
+
+      const res = await fetch(url);
       const data = await res.json();
-      setCards(data.cards);
+
+      setCards(data.data); // Scryfall stores results in data.data
     } catch (err) {
-      console.error(err);
+      console.error("Error fetching from Scryfall:", err);
       setCards([]);
     }
+
     setLoading(false);
   };
 
@@ -65,6 +89,7 @@ const CardSearch = () => {
         setCards([]);
       }
     }, 500);
+
     return () => clearTimeout(delay);
   }, [query]);
 
@@ -104,71 +129,78 @@ const CardSearch = () => {
       {/* Cards Grid */}
       {!loading && cards.length > 0 && (
         <div className="grid gap-6 grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 max-w-6xl mx-auto">
-          {cards
-            .filter((card) => card.imageUrl)
-            .slice(0, 20)
-            .map((card) => (
-              <Tilt
-                key={card.id}
-                glareEnable={true}
-                glareMaxOpacity={0.15}
-                glareColor="#ffffff"
-                glarePosition="all"
-                scale={1.05}
-                tiltMaxAngleX={15}
-                tiltMaxAngleY={15}
-                transitionSpeed={500}
-                className="rounded-xl cursor-pointer"
+          {cards.map((card) => (
+            <Tilt
+              key={card.id}
+              glareEnable
+              glareMaxOpacity={0.15}
+              scale={1.05}
+              tiltMaxAngleX={15}
+              tiltMaxAngleY={15}
+              className="rounded-xl"
+            >
+              <div
+                onClick={() => setSelectedCard(card)}
+                className="bg-white dark:bg-gray-800 overflow-hidden rounded-xl shadow-lg cursor-pointer"
               >
-                <div
-                  onClick={() => setSelectedCard(card)}
-                  className="bg-white dark:bg-gray-800 overflow-hidden rounded-xl shadow-lg"
-                >
-                  <img
-                    src={card.imageUrl}
-                    alt={card.name}
-                    className="w-full object-cover"
-                  />
-                  <div className="p-4">
-                    <h2 className="font-bold text-lg">{card.name}</h2>
-                    <p className="text-sm text-gray-600 dark:text-gray-400">
-                      {card.type}
-                    </p>
-                  </div>
-                </div>
-              </Tilt>
-            ))}
+                <img
+                  src={
+                    card.image_uris?.normal ||
+                    card.card_faces?.[0]?.image_uris?.normal ||
+                    "" // fallback if nothing exists
+                  }
+                  alt={card.name}
+                  className="w-full object-cover"
+                />
+              </div>
+            </Tilt>
+          ))}
         </div>
       )}
       {selectedCard && (
         <div
-          className="fixed inset-0 bg-black/70 flex items-center justify-center z-50"
-          onClick={() => setSelectedCard(null)} // close on background click
+          className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50"
+          onClick={() => setSelectedCard(null)}
         >
           <div
-            className="bg-white dark:bg-gray-900 p-6 rounded-xl max-w-md w-full relative"
-            onClick={(e) => e.stopPropagation()} // prevent closing when clicking modal itself
+            className="bg-white dark:bg-gray-900 text-black dark:text-white p-6 rounded-xl max-w-md w-full relative shadow-lg"
+            onClick={(e) => e.stopPropagation()} // prevent closing when clicking the modal itself
           >
+            {/* Close button */}
             <button
               onClick={() => setSelectedCard(null)}
-              className="absolute top-2 right-2 text-gray-500 hover:text-red-500"
+              className="absolute top-2 right-2 text-gray-400 hover:text-red-500 transition"
+              aria-label="Close"
             >
               ✖
             </button>
 
-            {selectedCard.imageUrl && (
-              <img
-                src={selectedCard.imageUrl}
-                alt={selectedCard.name}
-                className="w-full rounded-lg mb-4"
-              />
-            )}
+            {/* Card Image */}
+            <img
+              src={
+                selectedCard.image_uris?.large ||
+                selectedCard.card_faces?.[0]?.image_uris?.large ||
+                ""
+              }
+              alt={selectedCard.name}
+              className="w-full rounded-lg mb-4"
+            />
 
+            {/* Card Name */}
             <h2 className="text-2xl font-bold mb-2">{selectedCard.name}</h2>
-            <p className="text-sm text-gray-700 dark:text-gray-300">
-              <strong>Type:</strong> {selectedCard.type || "Unknown"}
+
+            {/* Type Line */}
+            <p className="text-sm text-gray-600 dark:text-gray-400 mb-2">
+              {selectedCard.type_line ||
+                selectedCard.card_faces?.[0]?.type_line}
             </p>
-            {/* Add more fields here if needed, like rarity, set, text, etc. */}
+
+            {/* Oracle Text */}
+            <p className="text-sm text-gray-700 dark:text-gray-300 whitespace-pre-wrap">
+              {selectedCard.oracle_text ||
+                selectedCard.card_faces?.[0]?.oracle_text ||
+                "No text available."}
+            </p>
           </div>
         </div>
       )}
