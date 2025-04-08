@@ -1,50 +1,81 @@
-# React + TypeScript + Vite
+# 🧙‍♂️ The Oracle
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+**The Oracle** is an AI-powered Magic: The Gathering card search experience.
 
-Currently, two official plugins are available:
+Just describe the card you're imagining — and The Oracle will interpret your words using OpenAI, then find real cards from the multiverse using the Scryfall API.
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react/README.md) uses [Babel](https://babeljs.io/) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+> Example: _"a red instant that deals damage"_  
+> → Interpreted as: `c:r type:instant o:damage`
 
-## Expanding the ESLint configuration
+---
 
-If you are developing a production application, we recommend updating the configuration to enable type aware lint rules:
+## ✨ Features
 
-- Configure the top-level `parserOptions` property like this:
+- 🧠 Natural language card search powered by OpenAI
+- 🎴 3D tilt effects with flip animations for double-faced cards
+- 🌗 Dark/light mode toggle with persistent theme
+- ⏳ Skeleton loaders for smooth UX while fetching
+- 📦 Integration with the [Scryfall API](https://scryfall.com/docs/api) for up-to-date card data
+- ⚡ Fast, responsive UI built with Vite + Tailwind CSS
 
-```js
-export default tseslint.config({
-  languageOptions: {
-    // other options...
-    parserOptions: {
-      project: ['./tsconfig.node.json', './tsconfig.app.json'],
-      tsconfigRootDir: import.meta.dirname,
-    },
-  },
-})
+---
+
+## 🧰 Tech Stack
+
+- ⚛️ React + TypeScript
+- 💨 Tailwind CSS
+- 🔮 OpenAI API (GPT-3.5)
+- 🃏 Scryfall API
+- 🌀 [react-parallax-tilt](https://www.npmjs.com/package/react-parallax-tilt)
+- ⚡ Vite for blazing-fast builds
+
+---
+
+## 📸 Preview
+
+> _(Replace with a screenshot or GIF showing search in action)_
+
+![The Oracle Screenshot](./screenshot.png)
+
+---
+
+## 🚀 Getting Started
+
+Clone the repo and install dependencies:
+
+```bash
+git clone https://github.com/yourusername/the-oracle.git
+cd the-oracle
+npm install
 ```
 
-- Replace `tseslint.configs.recommended` to `tseslint.configs.recommendedTypeChecked` or `tseslint.configs.strictTypeChecked`
-- Optionally add `...tseslint.configs.stylisticTypeChecked`
-- Install [eslint-plugin-react](https://github.com/jsx-eslint/eslint-plugin-react) and update the config:
+Create a `.env` file with your [OpenAI API Key](https://platform.openai.com/account/api-keys):
 
-```js
-// eslint.config.js
-import react from 'eslint-plugin-react'
-
-export default tseslint.config({
-  // Set the react version
-  settings: { react: { version: '18.3' } },
-  plugins: {
-    // Add the react plugin
-    react,
-  },
-  rules: {
-    // other rules...
-    // Enable its recommended rules
-    ...react.configs.recommended.rules,
-    ...react.configs['jsx-runtime'].rules,
-  },
-})
 ```
+VITE_OPENAI_API_KEY=sk-...
+```
+
+Start the development server:
+
+```bash
+npm run dev
+```
+
+---
+
+## 🧙 Why I Built This
+
+I wanted to reimagine what Magic: The Gathering search could feel like — intuitive, magical, and intelligent. The Oracle blends smart UI design with natural language AI to make finding cards effortless and fun. It's also a personal project to explore modern front-end architecture and LLM integrations.
+
+---
+
+## 🔗 Connect With Me
+
+- GitHub: [@yourusername](https://github.com/QuintonEL)
+- LinkedIn: [yourname](https://linkedin.com/in/quinton-laborde)
+
+---
+
+## 📜 License
+
+MIT
