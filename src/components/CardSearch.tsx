@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import Tilt from "react-parallax-tilt";
 import axios from "axios";
+import { useTypewriter, Cursor } from "react-simple-typewriter";
 
 const OPENAI_API_KEY = import.meta.env.VITE_OPENAI_API_KEY; // store this in .env
 
@@ -98,6 +99,14 @@ const SkeletonCard = () => (
 );
 
 const CardSearch = () => {
+  const examples = [
+    "a red spell that draws cards",
+    "a flying black demon that creates tokens",
+    "cheap blue counterspell",
+    "big green dinosaurs",
+    "a white enchantment that gains life",
+  ];
+
   const [query, setQuery] = useState("");
   const [cards, setCards] = useState<Card[]>([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -153,6 +162,12 @@ const CardSearch = () => {
     fetchAlternates();
   }, [selectedCard]);
 
+  const [text] = useTypewriter({
+    words: examples,
+    loop: true,
+    delaySpeed: 2500,
+  });
+
   return (
     <div
       className="min-h-screen px-4 py-10 transition-colors duration-300
@@ -171,7 +186,7 @@ const CardSearch = () => {
         </p>
         <input
           type="text"
-          placeholder="Search with a phrase like 'blue creature with flash'"
+          placeholder={text}
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           onKeyDown={(e) => {

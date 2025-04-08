@@ -33,9 +33,9 @@ Just describe the card you're imagining — and The Oracle will interpret your w
 
 ## 📸 Preview
 
-> _(Replace with a screenshot or GIF showing search in action)_
 
-![The Oracle Screenshot](./screenshot.png)
+![The Oracle Screenshot](./TheOracleHome.png)
+![The Oracle Screenshot](./TheOracleSearch.png)
 
 ---
 
@@ -71,8 +71,8 @@ I wanted to reimagine what Magic: The Gathering search could feel like — intui
 
 ## 🔗 Connect With Me
 
-- GitHub: [@yourusername](https://github.com/QuintonEL)
-- LinkedIn: [yourname](https://linkedin.com/in/quinton-laborde)
+- GitHub: [@QuintonEL](https://github.com/QuintonEL)
+- LinkedIn: [Quinton LaBorde](https://linkedin.com/in/quinton-laborde)
 
 ---
 
