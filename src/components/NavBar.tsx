@@ -1,7 +1,33 @@
 import { Link, useLocation } from "react-router-dom";
+import { Moon, Sun } from "lucide-react";
+import { useEffect, useState } from "react";
 
 const NavBar = () => {
   const { pathname } = useLocation();
+  const [isDark, setIsDark] = useState<boolean>(
+    () => localStorage.getItem("theme") === "dark"
+  );
+
+  const toggleDarkMode = () => {
+    const newMode = !isDark;
+    setIsDark(newMode);
+    if (newMode) {
+      document.documentElement.classList.add("dark");
+      localStorage.setItem("theme", "dark");
+    } else {
+      document.documentElement.classList.remove("dark");
+      localStorage.setItem("theme", "light");
+    }
+  };
+
+  // apply theme on load
+  useEffect(() => {
+    if (isDark) {
+      document.documentElement.classList.add("dark");
+    } else {
+      document.documentElement.classList.remove("dark");
+    }
+  }, [isDark]);
 
   return (
     <nav className="w-full bg-white/70 dark:bg-gray-800/70 backdrop-blur border-b border-gray-300 dark:border-gray-700 px-6 py-4 shadow-sm">
@@ -13,7 +39,7 @@ const NavBar = () => {
           MTG Search
         </Link>
 
-        <div className="flex gap-6 text-sm">
+        <div className="flex items-center gap-6 text-sm">
           <Link
             to="/"
             className={`${
@@ -34,6 +60,19 @@ const NavBar = () => {
           >
             About
           </Link>
+
+          {/* 🌗 Discrete dark mode toggle */}
+          <button
+            onClick={toggleDarkMode}
+            className="p-2 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700 transition"
+            aria-label="Toggle dark mode"
+          >
+            {isDark ? (
+              <Sun className="w-5 h-5 text-yellow-400" />
+            ) : (
+              <Moon className="w-5 h-5 text-purple-600" />
+            )}
+          </button>
         </div>
       </div>
     </nav>

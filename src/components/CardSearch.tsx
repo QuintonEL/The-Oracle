@@ -26,6 +26,87 @@ interface Card {
   }[];
 }
 
+function convertToScryfallQuery(input: string): string {
+  const q = input.toLowerCase();
+
+  const colorMap: Record<string, string> = {
+    red: "c:r",
+    blue: "c:u",
+    green: "c:g",
+    white: "c:w",
+    black: "c:b",
+  };
+
+  const types = [
+    "creature",
+    "instant",
+    "sorcery",
+    "enchantment",
+    "planeswalker",
+    "artifact",
+    "land",
+  ];
+  const abilities = [
+    "adapt",
+    "afflict",
+    "afterlife",
+    "aftermath",
+    "amass",
+    "ascend",
+    "convoke",
+    "crew",
+    "cycling",
+    "deathtouch",
+    "defender",
+    "double strike",
+    "embalm",
+    "enchant",
+    "equip",
+    "eternalize",
+    "exert",
+    "explore",
+    "fabricate",
+    "first strike",
+    "flash",
+    "flying",
+    "haste",
+    "hexproof",
+    "improvise",
+    "indestructible",
+    "jump-start",
+    "kicker",
+    "lifelink",
+    "menace",
+    "mentor",
+    "proliferate",
+    "prowess",
+    "reach",
+    "riot",
+    "spectacle",
+    "surveil",
+    "trample",
+    "transform",
+    "vigilance",
+    "ward",
+  ];
+
+  let parts: string[] = [];
+
+  for (const color in colorMap) {
+    if (q.includes(color)) parts.push(colorMap[color]);
+  }
+
+  for (const type of types) {
+    if (q.includes(type)) parts.push(`type:${type}`);
+  }
+
+  for (const keyword of abilities) {
+    if (q.includes(keyword)) parts.push(`o:${keyword}`);
+  }
+
+  return parts.join(" ");
+}
+
 const SkeletonCard = () => (
   <div className="bg-gray-200 dark:bg-gray-700 rounded-xl overflow-hidden shadow-lg animate-pulse">
     <div className="w-full h-64 bg-gray-300 dark:bg-gray-600" />
@@ -39,8 +120,7 @@ const SkeletonCard = () => (
 const CardSearch = () => {
   const [query, setQuery] = useState("");
   const [cards, setCards] = useState<Card[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [isDark, setIsDark] = useState(true);
+  const [isLoading, setIsLoading] = useState(false);
   const [selectedCard, setSelectedCard] = useState<Card | null>(null);
   const [alternatePrintings, setAlternatePrintings] = useState<Card[]>([]);
   const [isFlipped, setIsFlipped] = useState(false);
@@ -50,52 +130,34 @@ const CardSearch = () => {
     document.documentElement.classList.add("dark");
   }, []);
 
-  const toggleTheme = () => {
-    const root = document.documentElement;
-    if (isDark) {
-      root.classList.remove("dark");
-    } else {
-      root.classList.add("dark");
-    }
-    setIsDark(!isDark);
-  };
-
-  const searchCards = async (name: string) => {
-    setLoading(true);
-
-    try {
-      const parts = [];
-
-      if (name) parts.push(name); // full-text name search
-
-      const query = parts.join(" ");
-      const url = `https://api.scryfall.com/cards/search?q=${encodeURIComponent(
-        query
-      )}`;
-      console.log("Fetching:", url); // for debug
-
-      const res = await fetch(url);
-      const data = await res.json();
-
-      setCards(data.data); // Scryfall stores results in data.data
-    } catch (err) {
-      console.error("Error fetching from Scryfall:", err);
-      setCards([]);
-    }
-
-    setLoading(false);
-  };
-
   useEffect(() => {
-    const delay = setTimeout(() => {
-      if (query.trim()) {
-        searchCards(query);
-      } else {
-        setCards([]);
-      }
-    }, 500);
+    const fetchCards = async () => {
+      if (!query) return;
 
-    return () => clearTimeout(delay);
+      setIsLoading(true);
+      const scryfallQuery = convertToScryfallQuery(query);
+      const isAIQueryEmpty = !scryfallQuery.trim();
+
+      // If AI query returned nothing, fall back to fuzzy name search
+      const url = isAIQueryEmpty
+        ? `https://api.scryfall.com/cards/search?q=${encodeURIComponent(query)}`
+        : `https://api.scryfall.com/cards/search?q=${encodeURIComponent(
+            scryfallQuery
+          )}`;
+
+      try {
+        const res = await fetch(url);
+        const data = await res.json();
+        setCards(data.data);
+      } catch (err) {
+        console.error("Scryfall query failed", err);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    const timeout = setTimeout(fetchCards, 500); // debounce
+    return () => clearTimeout(timeout);
   }, [query]);
 
   useEffect(() => {
@@ -125,13 +187,6 @@ const CardSearch = () => {
       text-black dark:text-white"
     >
       {" "}
-      {/* Toggle */}
-      <button
-        onClick={toggleTheme}
-        className="absolute top-4 right-4 bg-gray-300 dark:bg-gray-800 text-black dark:text-white px-4 py-2 rounded-full shadow hover:scale-105 transition"
-      >
-        {isDark ? "☀️ Light Mode" : "🌙 Dark Mode"}
-      </button>
       {/* Search Bar */}
       <div className="w-full max-w-xl mx-auto text-center mb-10">
         <h1 className="text-5xl font-extrabold mb-2 tracking-tight drop-shadow-sm dark:drop-shadow-lg">
@@ -142,25 +197,14 @@ const CardSearch = () => {
         </p>
         <input
           type="text"
-          placeholder="Search for a card..."
+          placeholder="Search with a phrase like 'blue creature with flash'"
           value={query}
           onChange={(e) => setQuery(e.target.value)}
-          className="
-            w-full max-w-xl mx-auto
-            px-6 py-4
-            rounded-xl
-            bg-white/80 dark:bg-gray-900/80
-            border border-gray-300 dark:border-gray-700
-            text-lg text-gray-800 dark:text-white
-            placeholder-gray-400 dark:placeholder-gray-500
-            focus:outline-none focus:ring-4 focus:ring-purple-500/40
-            shadow-md backdrop-blur-md
-            transition duration-300
-          "
+          className="w-full max-w-xl px-6 py-4 rounded-xl bg-white/80 dark:bg-gray-900/80 border border-gray-300 dark:border-gray-700 text-lg text-gray-800 dark:text-white placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:ring-4 focus:ring-purple-500/40 shadow-md backdrop-blur-md transition"
         />
       </div>
       {/* Loading state */}
-      {loading && (
+      {isLoading && (
         <div className="grid gap-6 grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 max-w-6xl mx-auto">
           {Array.from({ length: 8 }).map((_, i) => (
             <SkeletonCard key={i} />
@@ -168,7 +212,7 @@ const CardSearch = () => {
         </div>
       )}
       {/* Cards Grid */}
-      {!loading && cards.length > 0 && (
+      {!isLoading && cards.length > 0 && (
         <div className="grid gap-6 grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 max-w-6xl mx-auto">
           {cards.map((card) => (
             <Tilt
