@@ -1,5 +1,66 @@
 import { useEffect, useState } from "react";
 import Tilt from "react-parallax-tilt";
+import axios from "axios";
+
+const OPENAI_API_KEY = import.meta.env.VITE_OPENAI_API_KEY; // store this in .env
+
+async function getScryfallQueryFromOpenAI(userQuery: string): Promise<string> {
+  const systemPrompt = `
+  You are a Magic: The Gathering card search assistant.
+  
+  Your job is to convert natural language card search queries into valid Scryfall query syntax. 
+  
+  Rules:
+  - Use only valid Scryfall search syntax.
+  - For color, use "c:w", "c:u", "c:b", "c:r", "c:g"
+  - For card types, use "type:creature", "type:instant", "type:sorcery", etc.
+  - For keyword abilities or effects, use "o:" (oracle text), like: o:flying, o:trample, o:"draw two cards"
+  - Do not split words or numbers into multiple o: queries — e.g. use o:"draw two cards", NOT o:draw o:two o:cards
+  - If the query includes a number or phrase, wrap the entire thing in quotes with o:"..."
+  - Do not use "type:spell" — use specific types like instant, sorcery, etc.
+  - If the user says things like "big creature" or "large dinosaur", interpret that as a creature with high power — typically power>=5.
+  - Do not use o:"big" or o:"large" unless those words appear literally in a card’s rules text.
+  - "dinosaur" is a creature subtype, so use o:dinosaur or type:creature o:dinosaur when mentioned.
+  - Output only the Scryfall query. No explanations.
+  
+  Examples:
+  - "red spell that deals damage" → c:r type:sorcery o:damage
+  - "a green creature with trample and haste" → c:g type:creature o:trample o:haste
+  - "draw two cards" → o:"draw two cards"
+  - "cheap counterspell" → type:instant o:counter cmc<=2
+  - "big green dinosaurs" → c:g type:creature o:dinosaur power>=5
+  
+  Convert this:
+  `;
+
+  try {
+    const response = await axios.post(
+      "https://api.openai.com/v1/chat/completions",
+      {
+        model: "gpt-3.5-turbo",
+        temperature: 0.2,
+        messages: [
+          { role: "system", content: systemPrompt },
+          { role: "user", content: `"${userQuery}"` },
+        ],
+      },
+      {
+        headers: {
+          Authorization: `Bearer ${OPENAI_API_KEY}`,
+          "Content-Type": "application/json",
+        },
+      }
+    );
+
+    const reply = response.data.choices?.[0]?.message?.content?.trim();
+    console.log("Calling OpenAI with:", userQuery);
+    console.log("Generated query:", reply);
+    return reply || "";
+  } catch (error) {
+    console.error("OpenAI error:", error);
+    return "";
+  }
+}
 
 interface Card {
   id: string;
@@ -26,87 +87,6 @@ interface Card {
   }[];
 }
 
-function convertToScryfallQuery(input: string): string {
-  const q = input.toLowerCase();
-
-  const colorMap: Record<string, string> = {
-    red: "c:r",
-    blue: "c:u",
-    green: "c:g",
-    white: "c:w",
-    black: "c:b",
-  };
-
-  const types = [
-    "creature",
-    "instant",
-    "sorcery",
-    "enchantment",
-    "planeswalker",
-    "artifact",
-    "land",
-  ];
-  const abilities = [
-    "adapt",
-    "afflict",
-    "afterlife",
-    "aftermath",
-    "amass",
-    "ascend",
-    "convoke",
-    "crew",
-    "cycling",
-    "deathtouch",
-    "defender",
-    "double strike",
-    "embalm",
-    "enchant",
-    "equip",
-    "eternalize",
-    "exert",
-    "explore",
-    "fabricate",
-    "first strike",
-    "flash",
-    "flying",
-    "haste",
-    "hexproof",
-    "improvise",
-    "indestructible",
-    "jump-start",
-    "kicker",
-    "lifelink",
-    "menace",
-    "mentor",
-    "proliferate",
-    "prowess",
-    "reach",
-    "riot",
-    "spectacle",
-    "surveil",
-    "trample",
-    "transform",
-    "vigilance",
-    "ward",
-  ];
-
-  let parts: string[] = [];
-
-  for (const color in colorMap) {
-    if (q.includes(color)) parts.push(colorMap[color]);
-  }
-
-  for (const type of types) {
-    if (q.includes(type)) parts.push(`type:${type}`);
-  }
-
-  for (const keyword of abilities) {
-    if (q.includes(keyword)) parts.push(`o:${keyword}`);
-  }
-
-  return parts.join(" ");
-}
-
 const SkeletonCard = () => (
   <div className="bg-gray-200 dark:bg-gray-700 rounded-xl overflow-hidden shadow-lg animate-pulse">
     <div className="w-full h-64 bg-gray-300 dark:bg-gray-600" />
@@ -124,41 +104,35 @@ const CardSearch = () => {
   const [selectedCard, setSelectedCard] = useState<Card | null>(null);
   const [alternatePrintings, setAlternatePrintings] = useState<Card[]>([]);
   const [isFlipped, setIsFlipped] = useState(false);
+  const [aiQuery, setAiQuery] = useState("");
 
   // Auto-apply dark mode on load
   useEffect(() => {
     document.documentElement.classList.add("dark");
   }, []);
 
-  useEffect(() => {
-    const fetchCards = async () => {
-      if (!query) return;
+  const handleSearch = async () => {
+    if (!query.trim()) return;
 
-      setIsLoading(true);
-      const scryfallQuery = convertToScryfallQuery(query);
-      const isAIQueryEmpty = !scryfallQuery.trim();
+    setIsLoading(true);
 
-      // If AI query returned nothing, fall back to fuzzy name search
-      const url = isAIQueryEmpty
-        ? `https://api.scryfall.com/cards/search?q=${encodeURIComponent(query)}`
-        : `https://api.scryfall.com/cards/search?q=${encodeURIComponent(
-            scryfallQuery
-          )}`;
+    let scryfallQuery = await getScryfallQueryFromOpenAI(query);
+    setAiQuery(scryfallQuery);
 
-      try {
-        const res = await fetch(url);
-        const data = await res.json();
-        setCards(data.data);
-      } catch (err) {
-        console.error("Scryfall query failed", err);
-      } finally {
-        setIsLoading(false);
-      }
-    };
+    const url = `https://api.scryfall.com/cards/search?q=${encodeURIComponent(
+      scryfallQuery
+    )}`;
 
-    const timeout = setTimeout(fetchCards, 500); // debounce
-    return () => clearTimeout(timeout);
-  }, [query]);
+    try {
+      const res = await fetch(url);
+      const data = await res.json();
+      setCards(data.data || []);
+    } catch (err) {
+      console.error("Error fetching cards", err);
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   useEffect(() => {
     setIsFlipped(false); // reset flip every time a new card opens
@@ -190,18 +164,42 @@ const CardSearch = () => {
       {/* Search Bar */}
       <div className="w-full max-w-xl mx-auto text-center mb-10">
         <h1 className="text-5xl font-extrabold mb-2 tracking-tight drop-shadow-sm dark:drop-shadow-lg">
-          MTG Card Finder
+          The Oracle
         </h1>
         <p className="text-base text-gray-600 dark:text-gray-400 italic mb-6">
-          Discover cards across the Multiverse by name, color, or type.
+          Speak the spell. Find the card.
         </p>
         <input
           type="text"
           placeholder="Search with a phrase like 'blue creature with flash'"
           value={query}
           onChange={(e) => setQuery(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") {
+              e.preventDefault();
+              handleSearch();
+            }
+          }}
           className="w-full max-w-xl px-6 py-4 rounded-xl bg-white/80 dark:bg-gray-900/80 border border-gray-300 dark:border-gray-700 text-lg text-gray-800 dark:text-white placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:ring-4 focus:ring-purple-500/40 shadow-md backdrop-blur-md transition"
         />
+        {aiQuery && (
+          <p className="mt-2 text-sm text-purple-700 dark:text-purple-300 italic">
+            🤖 <span className="font-mono">{aiQuery}</span>
+          </p>
+        )}
+        <button
+          onClick={handleSearch}
+          disabled={isLoading}
+          className={`mt-4 px-6 py-3 rounded-xl shadow-md transition 
+    ${
+      isLoading
+        ? "bg-gray-400 cursor-not-allowed"
+        : "bg-purple-600 hover:bg-purple-700 text-white"
+    }
+  `}
+        >
+          {isLoading ? "Searching..." : "Search"}
+        </button>
       </div>
       {/* Loading state */}
       {isLoading && (
