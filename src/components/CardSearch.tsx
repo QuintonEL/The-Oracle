@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import Tilt from "react-parallax-tilt";
 import axios from "axios";
 import { useTypewriter, Cursor } from "react-simple-typewriter";
+import Footer from "./Footer";
 
 const OPENAI_API_KEY = import.meta.env.VITE_OPENAI_API_KEY; // store this in .env
 
@@ -24,7 +25,7 @@ async function getScryfallQueryFromOpenAI(userQuery: string): Promise<string> {
   - "dinosaur" is a creature subtype, so use o:dinosaur or type:creature o:dinosaur when mentioned.
   - To search for cards in either of two colors, use OR logic with parentheses:
   - For example: (c:r OR c:g)
-- Do not write multiple c: filters without OR — that means AND.
+  - Do not write multiple c: filters without OR — that means AND.
   - Output only the Scryfall query. No explanations.
   
   Examples:
@@ -133,24 +134,6 @@ function isLikelyCardName(input: string): boolean {
   const hasKeyword = keywords.some((word) => lower.includes(word));
 
   return wordCount <= 4 && !hasKeyword;
-}
-
-function mergeColorFilters(query: string): string {
-  const colorMatches = query.match(/\bc:(w|u|b|r|g)\b/g);
-  if (!colorMatches || colorMatches.length < 2) return query;
-
-  // Merge colors like [c:r, c:g] => c:rg
-  const colors = Array.from(
-    new Set(colorMatches.map((match) => match.slice(2)))
-  ).sort(); // e.g. ['g', 'r'] → ['r', 'g']
-
-  const merged = `c:${colors.join("")}`;
-
-  // Remove all individual c:X values
-  let cleaned = query.replace(/\bc:(w|u|b|r|g)\b/g, "").trim();
-
-  // Insert merged at the beginning
-  return `${merged} ${cleaned}`.replace(/\s+/g, " ");
 }
 
 const CardSearch = () => {
@@ -434,6 +417,7 @@ const CardSearch = () => {
             </div>
           );
         })()}
+      <Footer />.
     </div>
   );
 };
