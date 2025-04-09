@@ -1,5 +1,3 @@
-import React from "react";
-
 const AboutPage = () => {
   return (
     <div className="min-h-screen bg-gradient-to-br from-[#f0f4f8] to-[#e4eaf1] dark:from-[#1a1c2c] dark:via-[#3a3c4c] dark:to-black text-black dark:text-white px-6 py-12">

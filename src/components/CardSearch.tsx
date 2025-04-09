@@ -22,6 +22,9 @@ async function getScryfallQueryFromOpenAI(userQuery: string): Promise<string> {
   - If the user says things like "big creature" or "large dinosaur", interpret that as a creature with high power — typically power>=5.
   - Do not use o:"big" or o:"large" unless those words appear literally in a card’s rules text.
   - "dinosaur" is a creature subtype, so use o:dinosaur or type:creature o:dinosaur when mentioned.
+  - To search for cards in either of two colors, use OR logic with parentheses:
+  - For example: (c:r OR c:g)
+- Do not write multiple c: filters without OR — that means AND.
   - Output only the Scryfall query. No explanations.
   
   Examples:
@@ -30,6 +33,8 @@ async function getScryfallQueryFromOpenAI(userQuery: string): Promise<string> {
   - "draw two cards" → o:"draw two cards"
   - "cheap counterspell" → type:instant o:counter cmc<=2
   - "big green dinosaurs" → c:g type:creature o:dinosaur power>=5
+  - "red or green card draw" → (c:r OR c:g) o:draw
+  - "blue or black flying creatures" → (c:u OR c:b) type:creature o:flying
   
   Convert this:
   `;
@@ -98,15 +103,57 @@ const SkeletonCard = () => (
   </div>
 );
 
-const CardSearch = () => {
-  const examples = [
-    "a red spell that draws cards",
-    "a flying black demon that creates tokens",
-    "cheap blue counterspell",
-    "big green dinosaurs",
-    "a white enchantment that gains life",
+function isLikelyCardName(input: string): boolean {
+  const wordCount = input.trim().split(/\s+/).length;
+  const keywords = [
+    "creature",
+    "instant",
+    "sorcery",
+    "spell",
+    "enchantment",
+    "planeswalker",
+    "artifact",
+    "land",
+    "flying",
+    "haste",
+    "trample",
+    "flash",
+    "draw",
+    "destroy",
+    "counter",
+    "token",
+    "mana",
+    "cheap",
+    "expensive",
+    "big",
+    "small",
   ];
 
+  const lower = input.toLowerCase();
+  const hasKeyword = keywords.some((word) => lower.includes(word));
+
+  return wordCount <= 4 && !hasKeyword;
+}
+
+function mergeColorFilters(query: string): string {
+  const colorMatches = query.match(/\bc:(w|u|b|r|g)\b/g);
+  if (!colorMatches || colorMatches.length < 2) return query;
+
+  // Merge colors like [c:r, c:g] => c:rg
+  const colors = Array.from(
+    new Set(colorMatches.map((match) => match.slice(2)))
+  ).sort(); // e.g. ['g', 'r'] → ['r', 'g']
+
+  const merged = `c:${colors.join("")}`;
+
+  // Remove all individual c:X values
+  let cleaned = query.replace(/\bc:(w|u|b|r|g)\b/g, "").trim();
+
+  // Insert merged at the beginning
+  return `${merged} ${cleaned}`.replace(/\s+/g, " ");
+}
+
+const CardSearch = () => {
   const [query, setQuery] = useState("");
   const [cards, setCards] = useState<Card[]>([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -122,11 +169,30 @@ const CardSearch = () => {
 
   const handleSearch = async () => {
     if (!query.trim()) return;
-
     setIsLoading(true);
 
-    let scryfallQuery = await getScryfallQueryFromOpenAI(query);
-    setAiQuery(scryfallQuery);
+    let scryfallQuery = "";
+
+    if (isLikelyCardName(query)) {
+      console.log("🧩 Using fuzzy card name search");
+      setAiQuery(query); // 👈 add this line!
+      scryfallQuery = query;
+    } else {
+      console.log("🔮 Using OpenAI smart query");
+      const aiResult = await getScryfallQueryFromOpenAI(query);
+      setAiQuery(aiResult); // 👈 update here too
+      scryfallQuery = aiResult;
+
+      if (
+        !scryfallQuery.includes("c:") &&
+        !scryfallQuery.includes("type:") &&
+        !scryfallQuery.includes("o:")
+      ) {
+        console.warn("⚠️ AI fallback triggered — using raw input");
+        setAiQuery(query); // 👈 fallback display
+        scryfallQuery = query;
+      }
+    }
 
     const url = `https://api.scryfall.com/cards/search?q=${encodeURIComponent(
       scryfallQuery
@@ -161,6 +227,14 @@ const CardSearch = () => {
 
     fetchAlternates();
   }, [selectedCard]);
+
+  const examples = [
+    "a red spell that draws cards",
+    "a flying black demon that creates tokens",
+    "cheap blue counterspell",
+    "big green dinosaurs",
+    "a white enchantment that gains life",
+  ];
 
   const [text] = useTypewriter({
     words: examples,
