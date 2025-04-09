@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import Tilt from "react-parallax-tilt";
 import axios from "axios";
-import { useTypewriter, Cursor } from "react-simple-typewriter";
+import { useTypewriter } from "react-simple-typewriter";
 import Footer from "./Footer";
 
 const OPENAI_API_KEY = import.meta.env.VITE_OPENAI_API_KEY; // store this in .env
