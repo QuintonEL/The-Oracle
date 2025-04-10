@@ -144,6 +144,7 @@ const CardSearch = () => {
   const [alternatePrintings, setAlternatePrintings] = useState<Card[]>([]);
   const [isFlipped, setIsFlipped] = useState(false);
   const [aiQuery, setAiQuery] = useState("");
+  const [queryError, setQueryError] = useState<string | null>(null);
 
   // Auto-apply dark mode on load
   useEffect(() => {
@@ -184,9 +185,18 @@ const CardSearch = () => {
     try {
       const res = await fetch(url);
       const data = await res.json();
-      setCards(data.data || []);
+      if (!data.data || data.data.length === 0) {
+        setQueryError(
+          "😕 I couldn't find any cards for that search. Try rephrasing!"
+        );
+        setCards([]); // Optional, in case you want to clear old results
+      } else {
+        setCards(data.data);
+        setQueryError(null); // Clear any previous error
+      }
     } catch (err) {
       console.error("Error fetching cards", err);
+      setQueryError("❌ Something went wrong. Try again in a moment!");
     } finally {
       setIsLoading(false);
     }
@@ -259,6 +269,7 @@ const CardSearch = () => {
             🤖 <span className="font-mono">{aiQuery}</span>
           </p>
         )}
+
         <button
           onClick={handleSearch}
           disabled={isLoading}
@@ -279,6 +290,11 @@ const CardSearch = () => {
           {Array.from({ length: 8 }).map((_, i) => (
             <SkeletonCard key={i} />
           ))}
+        </div>
+      )}
+      {queryError && (
+        <div className="mt-4 text-red-600 dark:text-red-400 text-sm italic text-center">
+          {queryError}
         </div>
       )}
       {/* Cards Grid */}
