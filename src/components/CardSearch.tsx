@@ -417,7 +417,7 @@ const CardSearch = () => {
             </div>
           );
         })()}
-      <Footer />.
+      <Footer />
     </div>
   );
 };
