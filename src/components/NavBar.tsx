@@ -51,6 +51,16 @@ const NavBar = () => {
             Home
           </Link>
           <Link
+            to="/deck-builder"
+            className={`${
+              pathname === "/deck-builder"
+                ? "text-purple-600 dark:text-purple-300"
+                : "text-gray-600 dark:text-gray-400"
+            } hover:text-purple-500 transition`}
+          >
+            Deck Builder
+          </Link>
+          <Link
             to="/about"
             className={`${
               pathname === "/about"

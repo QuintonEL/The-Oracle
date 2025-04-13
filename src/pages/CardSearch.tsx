@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import Tilt from "react-parallax-tilt";
 import axios from "axios";
 import { useTypewriter } from "react-simple-typewriter";
-import Footer from "./Footer";
+import Footer from "../components/Footer";
 import systemPrompt from "../lib/systemPrompt";
 
 const OPENAI_API_KEY = import.meta.env.VITE_OPENAI_API_KEY; // store this in .env
@@ -73,7 +73,20 @@ const SkeletonCard = () => (
 );
 
 function isLikelyCardName(input: string): boolean {
-  const wordCount = input.trim().split(/\s+/).length;
+  const trimmed = input.trim();
+  const wordCount = trimmed.split(/\s+/).length;
+
+  // Let simple one-word queries pass as likely names
+  if (wordCount === 1) return true;
+
+  // If it has known Scryfall-style syntax, it's NOT a card name
+  const scryfallSyntax =
+    /(\bc:|\btype:|\bo:|\bcmc[<=>]|\bpower[<=>]|\btoughness[<=>])/.test(
+      trimmed
+    );
+  if (scryfallSyntax) return false;
+
+  // Fallback to keyword-based check
   const keywords = [
     "creature",
     "instant",
@@ -96,12 +109,18 @@ function isLikelyCardName(input: string): boolean {
     "expensive",
     "big",
     "small",
+    "mill",
+    "mono",
+    "graveyard",
+    "lifelink",
+    "discard",
+    "sacrifice",
   ];
 
-  const lower = input.toLowerCase();
-  const hasKeyword = keywords.some((word) => lower.includes(word));
-
-  return wordCount <= 4 && !hasKeyword;
+  const containsKeyword = keywords.some((kw) =>
+    trimmed.toLowerCase().includes(kw)
+  );
+  return !containsKeyword;
 }
 
 const CardSearch = () => {
@@ -127,12 +146,12 @@ const CardSearch = () => {
 
     if (isLikelyCardName(query)) {
       console.log("🧩 Using fuzzy card name search");
-      setAiQuery(query); // 👈 add this line!
+      setAiQuery(query);
       scryfallQuery = query;
     } else {
       console.log("🔮 Using OpenAI smart query");
       const aiResult = await getScryfallQueryFromOpenAI(query);
-      setAiQuery(aiResult); // 👈 update here too
+      setAiQuery(aiResult);
       scryfallQuery = aiResult;
 
       if (
@@ -141,7 +160,7 @@ const CardSearch = () => {
         !scryfallQuery.includes("o:")
       ) {
         console.warn("⚠️ AI fallback triggered — using raw input");
-        setAiQuery(query); // 👈 fallback display
+        setAiQuery(query);
         scryfallQuery = query;
       }
     }
