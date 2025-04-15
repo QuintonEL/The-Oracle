@@ -1,25 +1,26 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import axios from "axios";
 import deckBuilderPrompt from "../lib/deckBuilderPrompt";
 
 export async function generateDeckFromPrompt(
   prompt: string,
-  commander: boolean
+  suggestCommandersOnly: boolean
 ): Promise<string> {
   try {
-    const res = await axios.post(
+    const content = suggestCommandersOnly
+      ? `Suggest 5–10 real legendary creatures that would make strong Commanders for the theme: ${prompt}`
+      : `Build a 100-card Commander deck that includes a single commander and is based on: ${prompt}`;
+
+    console.log("🧠 Prompt to OpenAI:", content);
+
+    const response = await axios.post(
       "https://api.openai.com/v1/chat/completions",
       {
         model: "gpt-3.5-turbo",
         temperature: 0.7,
         messages: [
           { role: "system", content: deckBuilderPrompt },
-          {
-            role: "user",
-            content: commander
-              ? `Build a 100-card Commander deck: ${prompt}`
-              : `Build a 60-card deck: ${prompt}`,
-          },
+          { role: "user", content },
         ],
       },
       {
@@ -30,7 +31,7 @@ export async function generateDeckFromPrompt(
       }
     );
 
-    const text = res.data.choices?.[0]?.message?.content?.trim();
+    const text = response.data.choices?.[0]?.message?.content?.trim();
     return text || "";
   } catch (err) {
     console.error("Deck build error:", err);
@@ -42,14 +43,25 @@ const DeckBuilder = () => {
   const [deckPrompt, setDeckPrompt] = useState("");
   const [deckList, setDeckList] = useState("");
   const [loading, setLoading] = useState(false);
-  const [isCommander, setIsCommander] = useState(false);
+  const [suggestCommandersOnly, setSuggestCommandersOnly] = useState(false);
 
   const handleDeckGenerate = async () => {
+    if (!deckPrompt.trim()) return;
     setLoading(true);
-    const result = await generateDeckFromPrompt(deckPrompt, isCommander);
+    const result = await generateDeckFromPrompt(
+      deckPrompt,
+      suggestCommandersOnly
+    );
     setDeckList(result);
     setLoading(false);
   };
+
+  useEffect(() => {
+    setDeckList("");
+    if (deckPrompt.trim()) {
+      handleDeckGenerate();
+    }
+  }, [suggestCommandersOnly]);
 
   return (
     <div
@@ -59,9 +71,9 @@ const DeckBuilder = () => {
       text-black dark:text-white flex flex-col items-center"
     >
       <div className="w-full max-w-3xl text-center">
-        <h1 className="text-3xl font-bold mb-4">🧠 Deck Builder</h1>
+        <h1 className="text-3xl font-bold mb-4">🧠 Commander Deck Builder</h1>
         <p className="text-gray-600 dark:text-gray-400 mb-8 text-sm">
-          Describe a deck idea like{" "}
+          Describe a Commander deck idea like{" "}
           <span className="italic">"mono-blue control"</span> or{" "}
           <span className="italic">"vampire tribal with lifegain"</span>. The
           Oracle will brew something for you.
@@ -74,13 +86,14 @@ const DeckBuilder = () => {
           placeholder="e.g. mono-black discard and sacrifice deck"
           className="w-full p-4 rounded-xl bg-white/90 dark:bg-gray-800 border dark:border-gray-700 text-black dark:text-white shadow-md backdrop-blur-md transition focus:outline-none focus:ring-4 focus:ring-purple-500/30"
         />
+
         <div className="flex items-center justify-center gap-3 my-4 text-sm text-gray-600 dark:text-gray-400">
-          <label htmlFor="formatToggle">Commander Format</label>
+          <label htmlFor="suggestOnly">Suggest Commanders Only</label>
           <input
-            id="formatToggle"
+            id="suggestOnly"
             type="checkbox"
-            checked={isCommander}
-            onChange={() => setIsCommander(!isCommander)}
+            checked={suggestCommandersOnly}
+            onChange={() => setSuggestCommandersOnly(!suggestCommandersOnly)}
             className="w-5 h-5 accent-purple-600"
           />
         </div>
@@ -109,16 +122,19 @@ const DeckBuilder = () => {
         )}
       </div>
 
-      {deckList && (
-        <div className="mt-10 w-full max-w-3xl">
-          <h2 className="text-xl font-semibold mb-4 text-center">
-            🧾 Generated Deck
-          </h2>
-          <pre className="bg-black/5 dark:bg-white/5 p-6 rounded-xl text-sm whitespace-pre-wrap overflow-x-auto max-h-[70vh] border dark:border-gray-700 shadow-inner">
-            {deckList}
-          </pre>
-        </div>
-      )}
+      {deckList && suggestCommandersOnly ? (
+        <ul className="mt-8 max-w-2xl mx-auto bg-black/5 dark:bg-white/5 p-4 rounded text-sm space-y-2">
+          {deckList.split("\n").map((line, i) => (
+            <li key={i} className="border-b border-white/10 pb-2">
+              🧙‍♂️ {line}
+            </li>
+          ))}
+        </ul>
+      ) : deckList.trim() ? (
+        <pre className="mt-8 max-w-2xl mx-auto bg-black/5 dark:bg-white/5 p-4 rounded text-sm whitespace-pre-wrap">
+          {deckList}
+        </pre>
+      ) : null}
     </div>
   );
 };
