@@ -44,6 +44,8 @@ const DeckBuilder = () => {
   const [deckList, setDeckList] = useState("");
   const [loading, setLoading] = useState(false);
   const [suggestCommandersOnly, setSuggestCommandersOnly] = useState(false);
+  const [hoveredCard, setHoveredCard] = useState<string | null>(null);
+  const [cardImageUrl, setCardImageUrl] = useState<string | null>(null);
 
   const handleDeckGenerate = async () => {
     if (!deckPrompt.trim()) return;
@@ -62,6 +64,60 @@ const DeckBuilder = () => {
       handleDeckGenerate();
     }
   }, [suggestCommandersOnly]);
+
+  useEffect(() => {
+    // ADDED: Track component mount state
+    let isMounted = true;
+
+    if (hoveredCard) {
+      const fetchImage = async () => {
+        try {
+          // ADDED: Debug logging
+          console.log("Fetching image for:", hoveredCard);
+
+          // MODIFIED: Changed from exact to fuzzy search for better results
+          const res = await fetch(
+            `https://api.scryfall.com/cards/named?fuzzy=${encodeURIComponent(
+              hoveredCard
+            )}`
+          );
+
+          // ADDED: Better error handling
+          if (!res.ok) {
+            throw new Error(`Failed to fetch card: ${res.statusText}`);
+          }
+
+          const data = await res.json();
+
+          // ADDED: Check if component is still mounted
+          if (isMounted) {
+            const imageUrl =
+              data.image_uris?.normal ||
+              data.card_faces?.[0]?.image_uris?.normal;
+
+            // ADDED: Debug logging
+            console.log("Found image URL:", imageUrl);
+            setCardImageUrl(imageUrl || null);
+          }
+        } catch (err) {
+          console.error("Card image fetch failed:", err);
+          // ADDED: Check if component is still mounted
+          if (isMounted) {
+            setCardImageUrl(null);
+          }
+        }
+      };
+
+      fetchImage();
+    } else {
+      setCardImageUrl(null);
+    }
+
+    // ADDED: Cleanup function to prevent memory leaks
+    return () => {
+      isMounted = false;
+    };
+  }, [hoveredCard]);
 
   return (
     <div
@@ -131,10 +187,66 @@ const DeckBuilder = () => {
           ))}
         </ul>
       ) : deckList.trim() ? (
-        <pre className="mt-8 max-w-2xl mx-auto bg-black/5 dark:bg-white/5 p-4 rounded text-sm whitespace-pre-wrap">
-          {deckList}
-        </pre>
+        <div className="mt-8 max-w-2xl mx-auto bg-black/5 dark:bg-white/5 p-4 rounded text-sm whitespace-pre-wrap space-y-1">
+          {deckList.split("\n").map((line, i) => {
+            const trimmed = line.trim();
+            // MODIFIED: Improved regex to catch more card formats
+            const isCardLine =
+              /^[-–•] /.test(trimmed) || /^\d+x /.test(trimmed);
+            let cardName = null;
+
+            // ADDED: Better card name extraction
+            if (isCardLine) {
+              cardName = trimmed
+                .replace(/^[-–•] /, "") // Remove dash prefix
+                .replace(/^\d+x /, "") // Remove quantity prefix
+                .trim();
+            }
+
+            return (
+              <div
+                key={i}
+                // MODIFIED: Added conditional cursor styling
+                className={`relative group ${cardName ? "cursor-pointer" : ""}`}
+                onMouseEnter={() => cardName && setHoveredCard(cardName)}
+                onMouseLeave={() => setHoveredCard(null)}
+              >
+                <span className="hover:underline cursor-pointer text-purple-500 group-hover:font-semibold">
+                  {line}
+                </span>
+                {cardImageUrl && hoveredCard === cardName && cardName && (
+                  // MODIFIED: Changed positioning for more reliable display
+                  <div
+                    className="fixed z-50"
+                    style={{
+                      left: "calc(50% + 200px)",
+                      top: "50%",
+                      transform: "translateY(-50%)",
+                    }}
+                  >
+                    <img
+                      src={cardImageUrl || "/placeholder.svg"}
+                      alt={cardName}
+                      className="w-64 h-auto rounded-lg shadow-lg"
+                      // ADDED: Error handling for image loading
+                      onError={(e) => {
+                        console.error("Image failed to load:", e);
+                        e.currentTarget.style.display = "none";
+                      }}
+                    />
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
       ) : null}
+      {/* ADDED: Debug indicator */}
+      {hoveredCard && (
+        <div className="fixed bottom-4 right-4 bg-black/70 text-white p-2 rounded text-xs z-50">
+          Hovering: {hoveredCard}
+        </div>
+      )}
     </div>
   );
 };
