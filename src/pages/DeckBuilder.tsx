@@ -2,16 +2,9 @@ import { useState, useEffect } from "react";
 import axios from "axios";
 import deckBuilderPrompt from "../lib/deckBuilderPrompt";
 
-export async function generateDeckFromPrompt(
-  prompt: string,
-  suggestCommandersOnly: boolean
-): Promise<string> {
+export async function generateDeckFromPrompt(prompt: string): Promise<string> {
   try {
-    const content = suggestCommandersOnly
-      ? `Suggest 5–10 real legendary creatures that would make strong Commanders for the theme: ${prompt}`
-      : `Build a 100-card Commander deck that includes a single commander and is based on: ${prompt}`;
-
-    console.log("🧠 Prompt to OpenAI:", content);
+    console.log("🧠 Prompt to OpenAI:", prompt);
 
     const response = await axios.post(
       "https://api.openai.com/v1/chat/completions",
@@ -20,7 +13,7 @@ export async function generateDeckFromPrompt(
         temperature: 0.7,
         messages: [
           { role: "system", content: deckBuilderPrompt },
-          { role: "user", content },
+          { role: "user", content: prompt },
         ],
       },
       {
@@ -46,14 +39,21 @@ const DeckBuilder = () => {
   const [suggestCommandersOnly, setSuggestCommandersOnly] = useState(false);
   const [hoveredCard, setHoveredCard] = useState<string | null>(null);
   const [cardImageUrl, setCardImageUrl] = useState<string | null>(null);
+  const [commanderName, setCommanderName] = useState("");
 
   const handleDeckGenerate = async () => {
-    if (!deckPrompt.trim()) return;
+    if (!deckPrompt.trim() && !commanderName.trim()) return;
+
     setLoading(true);
-    const result = await generateDeckFromPrompt(
-      deckPrompt,
-      suggestCommandersOnly
-    );
+
+    const promptContent = suggestCommandersOnly
+      ? `Suggest 5–10 real legendary creatures that would make strong Commanders for the theme: ${deckPrompt}`
+      : commanderName.trim()
+      ? `Build a 100-card Commander deck centered on "${commanderName}". Include that card as the Commander and build synergistic support cards.`
+      : `Build a 100-card Commander deck that includes a single commander and is based on: ${deckPrompt}`;
+
+    const result = await generateDeckFromPrompt(promptContent);
+
     setDeckList(result);
     setLoading(false);
   };
@@ -143,6 +143,23 @@ const DeckBuilder = () => {
           className="w-full p-4 rounded-xl bg-white/90 dark:bg-gray-800 border dark:border-gray-700 text-black dark:text-white shadow-md backdrop-blur-md transition focus:outline-none focus:ring-4 focus:ring-purple-500/30"
         />
 
+        <div className="mt-4">
+          <label
+            htmlFor="commanderName"
+            className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
+          >
+            Specific Commander (optional)
+          </label>
+          <input
+            id="commanderName"
+            type="text"
+            placeholder="e.g. Teysa Karlov"
+            value={commanderName}
+            onChange={(e) => setCommanderName(e.target.value)}
+            className="w-full px-4 py-2 rounded-lg bg-white/90 dark:bg-gray-800 border dark:border-gray-700 text-black dark:text-white shadow-sm backdrop-blur-md focus:outline-none focus:ring-2 focus:ring-purple-500/30"
+          />
+        </div>
+
         <div className="flex items-center justify-center gap-3 my-4 text-sm text-gray-600 dark:text-gray-400">
           <label htmlFor="suggestOnly">Suggest Commanders Only</label>
           <input
@@ -192,7 +209,11 @@ const DeckBuilder = () => {
             const trimmed = line.trim();
             // MODIFIED: Improved regex to catch more card formats
             const isCardLine =
-              /^[-–•] /.test(trimmed) || /^\d+x /.test(trimmed);
+              (/^[-–•] /.test(trimmed) || /^\d+x /.test(trimmed)) &&
+              !/^(Commander|Creatures|Spells|Artifacts|Lands|Enchantments|Planeswalkers|Estimated Power Level)/i.test(
+                trimmed
+              );
+
             let cardName = null;
 
             // ADDED: Better card name extraction
@@ -211,9 +232,16 @@ const DeckBuilder = () => {
                 onMouseEnter={() => cardName && setHoveredCard(cardName)}
                 onMouseLeave={() => setHoveredCard(null)}
               >
-                <span className="hover:underline cursor-pointer text-purple-500 group-hover:font-semibold">
+                <span
+                  className={
+                    isCardLine
+                      ? "hover:underline cursor-pointer text-purple-500 group-hover:font-semibold"
+                      : "text-gray-800 dark:text-gray-300 font-semibold"
+                  }
+                >
                   {line}
                 </span>
+
                 {cardImageUrl && hoveredCard === cardName && cardName && (
                   // MODIFIED: Changed positioning for more reliable display
                   <div

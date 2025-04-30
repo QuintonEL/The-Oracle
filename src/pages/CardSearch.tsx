@@ -4,6 +4,7 @@ import axios from "axios";
 import { useTypewriter } from "react-simple-typewriter";
 import Footer from "../components/Footer";
 import systemPrompt from "../lib/systemPrompt";
+import { normalizeScryfallQuery } from "../utils/normalizeScryfallQuery";
 
 const OPENAI_API_KEY = import.meta.env.VITE_OPENAI_API_KEY; // store this in .env
 
@@ -152,7 +153,8 @@ const CardSearch = () => {
       console.log("🔮 Using OpenAI smart query");
       const aiResult = await getScryfallQueryFromOpenAI(query);
       setAiQuery(aiResult);
-      scryfallQuery = aiResult;
+
+      scryfallQuery = normalizeScryfallQuery(aiResult);
 
       if (
         !scryfallQuery.includes("c:") &&

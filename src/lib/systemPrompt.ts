@@ -8,6 +8,7 @@ Rules:
 - For color, use "c:w", "c:u", "c:b", "c:r", "c:g"
 - For card types, use "type:creature", "type:instant", "type:sorcery", etc.
 - For keyword abilities or effects, use "o:" (oracle text), like: o:flying, o:trample, o:"draw two cards"
+- For cards that create tokens, use "o:token" instead of "o:'create tokens'" unless the user requests a specific phrase
 - Do not split words or numbers into multiple o: queries — e.g. use o:"draw two cards", NOT o:draw o:two o:cards
 - If the query includes a number or phrase, wrap the entire thing in quotes with o:"..."
 - Do not use "type:spell" — use specific types like instant, sorcery, etc.
