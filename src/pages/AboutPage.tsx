@@ -48,7 +48,16 @@ const AboutPage = () => {
           The Oracle started as a passion project — I wanted to reimagine MTG
           search to feel more intuitive, magical, and smart. It's also a
           showcase of modern front-end tools and AI integration, combining
-          beautiful UX with powerful functionality.
+          beautiful UX with powerful functionality. A special thanks to{" "}
+          <a
+            href="https://v0.dev"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-purple-500 hover:underline"
+          >
+            v0.dev
+          </a>{" "}
+          for helping streamline code development and optimization.
         </p>
 
         <h2 className="text-2xl font-semibold mt-6">Connect</h2>

@@ -1,3 +1,5 @@
+"use client";
+
 import { useEffect, useState } from "react";
 import Tilt from "react-parallax-tilt";
 import axios from "axios";
@@ -61,6 +63,17 @@ interface Card {
       large: string;
     };
   }[];
+  // Add price data to the Card interface
+  prices?: {
+    usd?: string | null;
+    usd_foil?: string | null;
+    usd_etched?: string | null;
+    eur?: string | null;
+    eur_foil?: string | null;
+    tix?: string | null;
+  };
+  // Add rarity for additional context
+  rarity?: string;
 }
 
 const SkeletonCard = () => (
@@ -124,6 +137,27 @@ function isLikelyCardName(input: string): boolean {
   return !containsKeyword;
 }
 
+// Helper function to format price with currency
+const formatPrice = (
+  price: string | null | undefined,
+  exchangeRate: number,
+  currency = "C$"
+) => {
+  if (!price) return "N/A";
+  const priceInCAD = Number.parseFloat(price) * exchangeRate;
+  return `${currency}${priceInCAD.toFixed(2)}`;
+};
+
+// Calculate total deck price - keeping this function in case it's needed later
+const calculateTotalPrice = (cards: Card[], exchangeRate: number): number => {
+  return cards.reduce((total, card) => {
+    const price = card.prices?.usd
+      ? Number.parseFloat(card.prices.usd) * exchangeRate
+      : 0;
+    return total + price;
+  }, 0);
+};
+
 const CardSearch = () => {
   const [query, setQuery] = useState("");
   const [cards, setCards] = useState<Card[]>([]);
@@ -133,6 +167,34 @@ const CardSearch = () => {
   const [isFlipped, setIsFlipped] = useState(false);
   const [aiQuery, setAiQuery] = useState("");
   const [queryError, setQueryError] = useState<string | null>(null);
+  const [showPrices, setShowPrices] = useState(true);
+  const [priceFilter, setPriceFilter] = useState<string>("all");
+  const [sortOrder, setSortOrder] = useState<string>("name");
+  const [exchangeRate, setExchangeRate] = useState<number>(1.35); // Default USD to CAD rate
+  const [isLoadingRate, setIsLoadingRate] = useState(false);
+
+  // Fetch exchange rate on component mount
+  useEffect(() => {
+    const fetchExchangeRate = async () => {
+      setIsLoadingRate(true);
+      try {
+        // Using ExchangeRate-API for USD to CAD conversion
+        const response = await fetch("https://open.er-api.com/v6/latest/USD");
+        const data = await response.json();
+        if (data.rates && data.rates.CAD) {
+          setExchangeRate(data.rates.CAD);
+          console.log("Exchange rate USD to CAD:", data.rates.CAD);
+        }
+      } catch (error) {
+        console.error("Error fetching exchange rate:", error);
+        // Keep the default rate if there's an error
+      } finally {
+        setIsLoadingRate(false);
+      }
+    };
+
+    fetchExchangeRate();
+  }, []);
 
   // Auto-apply dark mode on load
   useEffect(() => {
@@ -222,6 +284,41 @@ const CardSearch = () => {
     fetchAlternates();
   }, [selectedCard]);
 
+  // Filter and sort cards based on price
+  const filteredAndSortedCards = [...cards]
+    .filter((card) => {
+      if (priceFilter === "all") return true;
+      const priceInCAD =
+        Number.parseFloat(card.prices?.usd || "0") * exchangeRate;
+      if (priceFilter === "under5") return priceInCAD < 5;
+      if (priceFilter === "5to20") return priceInCAD >= 5 && priceInCAD <= 20;
+      if (priceFilter === "over20") return priceInCAD > 20;
+      return true;
+    })
+    .sort((a, b) => {
+      if (sortOrder === "name") return a.name.localeCompare(b.name);
+      if (sortOrder === "price-low") {
+        return (
+          Number.parseFloat(a.prices?.usd || "0") * exchangeRate -
+          Number.parseFloat(b.prices?.usd || "0") * exchangeRate
+        );
+      }
+      if (sortOrder === "price-high") {
+        return (
+          Number.parseFloat(b.prices?.usd || "0") * exchangeRate -
+          Number.parseFloat(a.prices?.usd || "0") * exchangeRate
+        );
+      }
+      if (sortOrder === "rarity") {
+        const rarityOrder = { common: 0, uncommon: 1, rare: 2, mythic: 3 };
+        return (
+          (rarityOrder[a.rarity as keyof typeof rarityOrder] || 0) -
+          (rarityOrder[b.rarity as keyof typeof rarityOrder] || 0)
+        );
+      }
+      return 0;
+    });
+
   const examples = [
     "a red spell that draws cards",
     "a flying black demon that creates tokens",
@@ -284,7 +381,62 @@ const CardSearch = () => {
         >
           {isLoading ? "Searching..." : "Search"}
         </button>
+
+        {isLoadingRate && (
+          <p className="mt-2 text-xs text-gray-500 dark:text-gray-400">
+            Loading exchange rate...
+          </p>
+        )}
+        {!isLoadingRate && (
+          <p className="mt-2 text-xs text-gray-500 dark:text-gray-400">
+            Prices shown in CAD (1 USD = {exchangeRate.toFixed(2)} CAD)
+          </p>
+        )}
       </div>
+      {/* Price Controls */}
+      {cards.length > 0 && (
+        <div className="max-w-6xl mx-auto mb-6">
+          <div className="flex flex-wrap items-center justify-between gap-4 bg-white/10 dark:bg-black/20 p-4 rounded-lg">
+            <div className="flex items-center">
+              <label className="mr-2 text-sm">Show Prices:</label>
+              <input
+                type="checkbox"
+                checked={showPrices}
+                onChange={() => setShowPrices(!showPrices)}
+                className="w-4 h-4 accent-purple-600"
+              />
+            </div>
+
+            <div className="flex items-center">
+              <label className="mr-2 text-sm">Price Filter:</label>
+              <select
+                value={priceFilter}
+                onChange={(e) => setPriceFilter(e.target.value)}
+                className="bg-white/80 dark:bg-gray-800 text-sm rounded px-2 py-1 border border-gray-300 dark:border-gray-700"
+              >
+                <option value="all">All Prices</option>
+                <option value="under5">Under C$5</option>
+                <option value="5to20">C$5 - C$20</option>
+                <option value="over20">Over C$20</option>
+              </select>
+            </div>
+
+            <div className="flex items-center">
+              <label className="mr-2 text-sm">Sort By:</label>
+              <select
+                value={sortOrder}
+                onChange={(e) => setSortOrder(e.target.value)}
+                className="bg-white/80 dark:bg-gray-800 text-sm rounded px-2 py-1 border border-gray-300 dark:border-gray-700"
+              >
+                <option value="name">Name</option>
+                <option value="price-low">Price (Low to High)</option>
+                <option value="price-high">Price (High to Low)</option>
+                <option value="rarity">Rarity</option>
+              </select>
+            </div>
+          </div>
+        </div>
+      )}
       {/* Loading state */}
       {isLoading && (
         <div className="grid gap-6 grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 max-w-6xl mx-auto">
@@ -299,9 +451,9 @@ const CardSearch = () => {
         </div>
       )}
       {/* Cards Grid */}
-      {!isLoading && cards.length > 0 && (
+      {!isLoading && filteredAndSortedCards.length > 0 && (
         <div className="grid gap-6 grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 max-w-6xl mx-auto">
-          {cards.map((card) => (
+          {filteredAndSortedCards.map((card) => (
             <Tilt
               key={card.id}
               glareEnable
@@ -323,11 +475,40 @@ const CardSearch = () => {
                   src={
                     card.image_uris?.normal ||
                     card.card_faces?.[0]?.image_uris?.normal ||
-                    "" // fallback if nothing exists
+                    "/placeholder.svg" ||
+                    "/placeholder.svg"
                   }
                   alt={card.name}
                   className="w-full object-cover"
                 />
+
+                {/* Price Badge */}
+                {showPrices && card.prices?.usd && (
+                  <div className="absolute top-2 right-2 bg-black/70 text-white px-2 py-1 rounded-full text-xs font-semibold">
+                    C$
+                    {(
+                      Number.parseFloat(card.prices.usd) * exchangeRate
+                    ).toFixed(2)}
+                  </div>
+                )}
+
+                {/* Rarity Badge */}
+                {card.rarity && (
+                  <div
+                    className={`absolute bottom-2 left-2 px-2 py-1 rounded-full text-xs font-semibold
+                    ${
+                      card.rarity === "common"
+                        ? "bg-gray-500/70 text-white"
+                        : card.rarity === "uncommon"
+                        ? "bg-blue-500/70 text-white"
+                        : card.rarity === "rare"
+                        ? "bg-yellow-500/70 text-black"
+                        : "bg-orange-500/70 text-white"
+                    }`}
+                  >
+                    {card.rarity.charAt(0).toUpperCase() + card.rarity.slice(1)}
+                  </div>
+                )}
               </div>
             </Tilt>
           ))}
@@ -366,7 +547,9 @@ const CardSearch = () => {
                       {/* Front Face */}
                       <div className="absolute inset-0 backface-hidden z-20">
                         <img
-                          src={faces![0].image_uris!.large}
+                          src={
+                            faces![0].image_uris!.large || "/placeholder.svg"
+                          }
                           alt={faces![0].name}
                           className="w-full h-full object-cover rounded-lg"
                         />
@@ -375,7 +558,9 @@ const CardSearch = () => {
                       {/* Back Face */}
                       <div className="absolute inset-0 rotate-y-180 backface-hidden z-10">
                         <img
-                          src={faces![1].image_uris!.large}
+                          src={
+                            faces![1].image_uris!.large || "/placeholder.svg"
+                          }
                           alt={faces![1].name}
                           className="w-full h-full object-cover rounded-lg"
                         />
@@ -399,6 +584,55 @@ const CardSearch = () => {
                     selectedCard.card_faces?.[0]?.type_line}
                 </p>
 
+                {/* Price Information */}
+                {selectedCard.prices && (
+                  <div className="mt-2 mb-4 bg-gray-100 dark:bg-gray-800 p-3 rounded-lg">
+                    <h3 className="text-sm font-semibold mb-2 text-gray-700 dark:text-gray-300">
+                      Price Information (CAD)
+                    </h3>
+                    <div className="grid grid-cols-2 gap-2 text-sm">
+                      <div className="flex justify-between">
+                        <span className="text-gray-600 dark:text-gray-400">
+                          Regular:
+                        </span>
+                        <span className="font-medium text-green-600 dark:text-green-400">
+                          {formatPrice(
+                            selectedCard.prices.usd,
+                            exchangeRate,
+                            "C$"
+                          )}
+                        </span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-gray-600 dark:text-gray-400">
+                          Foil:
+                        </span>
+                        <span className="font-medium text-blue-600 dark:text-blue-400">
+                          {formatPrice(
+                            selectedCard.prices.usd_foil,
+                            exchangeRate,
+                            "C$"
+                          )}
+                        </span>
+                      </div>
+                      {selectedCard.prices.usd_etched && (
+                        <div className="flex justify-between">
+                          <span className="text-gray-600 dark:text-gray-400">
+                            Etched:
+                          </span>
+                          <span className="font-medium text-purple-600 dark:text-purple-400">
+                            {formatPrice(
+                              selectedCard.prices.usd_etched,
+                              exchangeRate,
+                              "C$"
+                            )}
+                          </span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+
                 {/* Oracle Text */}
                 <p className="text-sm text-gray-700 dark:text-gray-300 whitespace-pre-wrap">
                   {selectedCard.oracle_text ||
@@ -413,19 +647,30 @@ const CardSearch = () => {
                       Other Versions
                     </h3>
                     <div className="flex overflow-x-auto gap-4 pb-2 modal-scroll">
-                      {alternatePrintings.map((version) => (
-                        <img
-                          key={version.id}
-                          src={
-                            version.image_uris?.small ||
-                            version.card_faces?.[0]?.image_uris?.small ||
-                            ""
-                          }
-                          alt={version.name}
-                          title={`${version.set_name} — #${version.collector_number}`}
-                          className="w-24 h-auto rounded-lg shadow-md hover:scale-105 transition-transform cursor-pointer"
-                          onClick={() => setSelectedCard(version)}
-                        />
+                      {alternatePrintings.map((version: Card) => (
+                        <div key={version.id} className="relative">
+                          <img
+                            src={
+                              version.image_uris?.small ||
+                              version.card_faces?.[0]?.image_uris?.small ||
+                              "/placeholder.svg" ||
+                              "/placeholder.svg"
+                            }
+                            alt={version.name}
+                            title={`${version.set_name} — #${version.collector_number}`}
+                            className="w-24 h-auto rounded-lg shadow-md hover:scale-105 transition-transform cursor-pointer"
+                            onClick={() => setSelectedCard(version)}
+                          />
+                          {version.prices?.usd && (
+                            <div className="absolute bottom-0 right-0 bg-black/70 text-white px-1 py-0.5 text-xs rounded-bl-lg rounded-tr-lg">
+                              C$
+                              {(
+                                Number.parseFloat(version.prices.usd) *
+                                exchangeRate
+                              ).toFixed(2)}
+                            </div>
+                          )}
+                        </div>
                       ))}
                     </div>
                   </div>
