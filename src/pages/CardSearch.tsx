@@ -149,14 +149,14 @@ const formatPrice = (
 };
 
 // Calculate total deck price - keeping this function in case it's needed later
-const calculateTotalPrice = (cards: Card[], exchangeRate: number): number => {
-  return cards.reduce((total, card) => {
-    const price = card.prices?.usd
-      ? Number.parseFloat(card.prices.usd) * exchangeRate
-      : 0;
-    return total + price;
-  }, 0);
-};
+// const calculateTotalPrice = (cards: Card[], exchangeRate: number): number => {
+//   return cards.reduce((total, card) => {
+//     const price = card.prices?.usd
+//       ? Number.parseFloat(card.prices.usd) * exchangeRate
+//       : 0;
+//     return total + price;
+//   }, 0);
+// };
 
 const CardSearch = () => {
   const [query, setQuery] = useState("");
