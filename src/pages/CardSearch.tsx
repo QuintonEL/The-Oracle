@@ -7,6 +7,7 @@ import { useTypewriter } from "react-simple-typewriter";
 import Footer from "../components/Footer";
 import systemPrompt from "../lib/systemPrompt";
 import { normalizeScryfallQuery } from "../utils/normalizeScryfallQuery";
+import { Share2, Copy, Check } from "lucide-react";
 
 const OPENAI_API_KEY = import.meta.env.VITE_OPENAI_API_KEY; // store this in .env
 
@@ -74,6 +75,8 @@ interface Card {
   };
   // Add rarity for additional context
   rarity?: string;
+  // Add scryfall URI for sharing
+  scryfall_uri?: string;
 }
 
 const SkeletonCard = () => (
@@ -172,6 +175,9 @@ const CardSearch = () => {
   const [sortOrder, setSortOrder] = useState<string>("name");
   const [exchangeRate, setExchangeRate] = useState<number>(1.35); // Default USD to CAD rate
   const [isLoadingRate, setIsLoadingRate] = useState(false);
+  const [shareStatus, setShareStatus] = useState<
+    "idle" | "copied" | "shared" | "error"
+  >("idle");
 
   // Fetch exchange rate on component mount
   useEffect(() => {
@@ -200,6 +206,16 @@ const CardSearch = () => {
   useEffect(() => {
     document.documentElement.classList.add("dark");
   }, []);
+
+  // Reset share status after a delay
+  useEffect(() => {
+    if (shareStatus === "copied" || shareStatus === "shared") {
+      const timer = setTimeout(() => {
+        setShareStatus("idle");
+      }, 2000);
+      return () => clearTimeout(timer);
+    }
+  }, [shareStatus]);
 
   const handleSearch = async () => {
     if (!query.trim()) return;
@@ -283,6 +299,49 @@ const CardSearch = () => {
 
     fetchAlternates();
   }, [selectedCard]);
+
+  // Handle sharing a card
+  const handleShareCard = async () => {
+    if (!selectedCard) return;
+
+    const shareUrl =
+      selectedCard.scryfall_uri ||
+      `https://scryfall.com/card/${selectedCard.id}`;
+    const shareTitle = `Check out this MTG card: ${selectedCard.name}`;
+    const shareText = `${selectedCard.name} - ${selectedCard.type_line || ""}`;
+
+    // Try to use the Web Share API if available
+    if (navigator.share) {
+      try {
+        await navigator.share({
+          title: shareTitle,
+          text: shareText,
+          url: shareUrl,
+        });
+        setShareStatus("shared");
+      } catch (error) {
+        console.error("Error sharing:", error);
+        // Fall back to clipboard if sharing fails
+        copyToClipboard(shareUrl);
+      }
+    } else {
+      // Fall back to clipboard if Web Share API is not available
+      copyToClipboard(shareUrl);
+    }
+  };
+
+  // Helper function to copy to clipboard
+  const copyToClipboard = (text: string) => {
+    navigator.clipboard
+      .writeText(text)
+      .then(() => {
+        setShareStatus("copied");
+      })
+      .catch((err) => {
+        console.error("Could not copy text: ", err);
+        setShareStatus("error");
+      });
+  };
 
   // Filter and sort cards based on price
   const filteredAndSortedCards = [...cards]
@@ -591,15 +650,66 @@ const CardSearch = () => {
                     </div>
                   </div>
                 ) : (
-                  <img
-                    src={selectedCard.image_uris?.large || ""}
-                    alt={selectedCard.name}
-                    className="w-full rounded-lg mb-4"
-                  />
+                  <div className="relative">
+                    <img
+                      src={selectedCard.image_uris?.large || ""}
+                      alt={selectedCard.name}
+                      className="w-full rounded-lg mb-4"
+                    />
+                  </div>
                 )}
 
-                {/* Card Name */}
-                <h2 className="text-2xl font-bold mb-2">{selectedCard.name}</h2>
+                {/* Card Header with Name and Share Button */}
+                <div className="flex justify-between items-center mb-2">
+                  <h2 className="text-2xl font-bold">{selectedCard.name}</h2>
+
+                  {/* Share Button */}
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleShareCard();
+                    }}
+                    className="flex items-center justify-center p-2 rounded-full bg-purple-100 dark:bg-purple-900/30 hover:bg-purple-200 dark:hover:bg-purple-800/50 text-purple-700 dark:text-purple-300 transition-colors"
+                    title="Share this card"
+                  >
+                    {shareStatus === "idle" && <Share2 size={18} />}
+                    {shareStatus === "copied" && (
+                      <Check
+                        size={18}
+                        className="text-green-600 dark:text-green-400"
+                      />
+                    )}
+                    {shareStatus === "shared" && (
+                      <Check
+                        size={18}
+                        className="text-green-600 dark:text-green-400"
+                      />
+                    )}
+                    {shareStatus === "error" && (
+                      <Copy
+                        size={18}
+                        className="text-red-600 dark:text-red-400"
+                      />
+                    )}
+                  </button>
+                </div>
+
+                {/* Share Status Message */}
+                {shareStatus === "copied" && (
+                  <div className="mb-2 text-xs text-green-600 dark:text-green-400 text-right">
+                    Link copied to clipboard!
+                  </div>
+                )}
+                {shareStatus === "shared" && (
+                  <div className="mb-2 text-xs text-green-600 dark:text-green-400 text-right">
+                    Card shared successfully!
+                  </div>
+                )}
+                {shareStatus === "error" && (
+                  <div className="mb-2 text-xs text-red-600 dark:text-red-400 text-right">
+                    Couldn't share. Try again.
+                  </div>
+                )}
 
                 {/* Type Line */}
                 <p className="text-sm text-gray-600 dark:text-gray-400 mb-2">
