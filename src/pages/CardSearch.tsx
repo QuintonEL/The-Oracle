@@ -437,6 +437,29 @@ const CardSearch = () => {
           </div>
         </div>
       )}
+      {/* Results Count */}
+      {!isLoading && filteredAndSortedCards.length > 0 && (
+        <div className="max-w-6xl mx-auto mb-4 text-sm text-gray-600 dark:text-gray-400">
+          <p>
+            Showing{" "}
+            <span className="font-semibold text-purple-600 dark:text-purple-400">
+              {filteredAndSortedCards.length}
+            </span>
+            {filteredAndSortedCards.length !== cards.length && (
+              <>
+                {" "}
+                of <span className="font-semibold">{cards.length}</span>
+              </>
+            )}{" "}
+            results{" "}
+            {query && (
+              <>
+                for <span className="italic">"{query}"</span>
+              </>
+            )}
+          </p>
+        </div>
+      )}
       {/* Loading state */}
       {isLoading && (
         <div className="grid gap-6 grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 max-w-6xl mx-auto">
@@ -484,7 +507,7 @@ const CardSearch = () => {
 
                 {/* Price Badge */}
                 {showPrices && card.prices?.usd && (
-                  <div className="absolute top-2 right-2 bg-black/70 text-white px-2 py-1 rounded-full text-xs font-semibold">
+                  <div className="absolute bottom-2 right-2 bg-black/70 text-white px-2 py-1 rounded-full text-xs font-semibold">
                     C$
                     {(
                       Number.parseFloat(card.prices.usd) * exchangeRate
