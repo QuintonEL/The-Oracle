@@ -32,6 +32,20 @@ export async function generateDeckFromPrompt(prompt: string): Promise<string> {
   }
 }
 
+// Validate commander existence with Scryfall fuzzy search
+async function commanderExists(name: string): Promise<boolean> {
+  try {
+    const res = await fetch(
+      `https://api.scryfall.com/cards/named?fuzzy=${encodeURIComponent(name)}`
+    );
+    const data = await res.json();
+    return !data.object || data.object !== "error";
+  } catch (err) {
+    console.error("Commander validation failed:", err);
+    return false;
+  }
+}
+
 const DeckBuilder = () => {
   const [deckPrompt, setDeckPrompt] = useState("");
   const [deckList, setDeckList] = useState("");
@@ -42,9 +56,24 @@ const DeckBuilder = () => {
   const [commanderName, setCommanderName] = useState("");
 
   const handleDeckGenerate = async () => {
-    if (!deckPrompt.trim() && !commanderName.trim()) return;
+    if (!deckPrompt.trim() && !commanderName.trim()) {
+      alert("❌ Please enter a deck theme or a commander name.");
+      return;
+    }
 
     setLoading(true);
+
+    // ✅ If user entered a commander name, validate it on Scryfall first
+    if (commanderName.trim()) {
+      const exists = await commanderExists(commanderName.trim());
+      if (!exists) {
+        alert(
+          "❌ That commander doesn't seem to exist. Please check the spelling!"
+        );
+        setLoading(false);
+        return;
+      }
+    }
 
     const promptContent = suggestCommandersOnly
       ? `Suggest 5–10 real legendary creatures that would make strong Commanders for the theme: ${deckPrompt}`
