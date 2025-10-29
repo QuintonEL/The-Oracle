@@ -10,12 +10,14 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@reduxjs/toolkit": "^2.9.2",
     "@tailwindcss/vite": "^4.1.2",
     "axios": "^1.8.4",
     "lucide-react": "^0.487.0",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "react-parallax-tilt": "^1.7.289",
+    "react-redux": "^9.2.0",
     "react-router-dom": "^7.5.0",
     "react-simple-typewriter": "^5.0.1"
   },

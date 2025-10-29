@@ -202,10 +202,7 @@ const CardSearch = () => {
     fetchExchangeRate();
   }, []);
 
-  // Auto-apply dark mode on load
-  useEffect(() => {
-    document.documentElement.classList.add("dark");
-  }, []);
+  // Theme is now managed by Redux
 
   // Reset share status after a delay
   useEffect(() => {
